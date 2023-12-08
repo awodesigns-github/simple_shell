@@ -1,62 +1,90 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-
-extern char **environ;
+#include "main.h"
 
 /**
- * execute_command - executes the command
+ * tokenize - tokenizes the string input command
  *
  * @command: the command itself
+ * @delim: string of delimiters
+ *
+ * Return: ptr to ptr to tokenized strings
  */
-void execute_command(char *command)
+char **tokenize(char *command, char *delim)
 {
-	pid_t pid = fork();
+	char *str = strdup(command);
+	char *str2 = strdup(command);
+	char **argv;
+	char *token;
+	int token_count = 0, i = 0;
 
-	if (pid == -1)
-	{
-		perror("fork Error!\n");
-		exit(EXIT_FAILURE);
-	}
-	if (pid == 0)
-	{
-		char *args[] = {command, NULL};
+	token = strtok(str, delim);
 
-		if (execve(command, args, environ) == -1)
-		{
-			perror("exec error");
-			exit(EXIT_FAILURE);
-		}
-	} else
+	/* count the tokens */
+	while (token != NULL)
 	{
-		wait(NULL);
+		token_count++;
+		token = strtok(NULL, delim);
 	}
+
+	/* cpy tokens to array list */
+	token = strtok(str2, delim);
+	argv = malloc((token_count + 1) * sizeof(char *));
+	while (token != NULL)
+	{
+		argv[i] = malloc((strlen(token) + 1) * sizeof(char));
+		strcpy(argv[i], token);
+		token = strtok(NULL, delim);
+		i++;
+	}
+	argv[i] = NULL;
+	free(str);
+	free(str2);
+	return (argv);
 }
 
 /**
- * main - simple shell 1
+ * main - simple shell 1.0
+ *
+ * @ac: number of arguments passed to main
+ * @av: argument list
  *
  * Return: integer
  */
-int main(void)
+int main(int ac, char *av[])
 {
+	pid_t child_pid;
 	char *buffer = NULL;
 	size_t len = 0;
 	ssize_t read;
+	char **argv;
 
 	while (1)
 	{
-		printf("$ ");
+		printf("#cisfun$ ");
 		read = getline(&buffer, &len, stdin);
-		if (read != -1)
+
+		/* handle end-of-file */
+		if (read == -1)
 		{
-			printf("%s\n", buffer);
-			execute_command(buffer);
+			free(buffer);
+			printf("Exiting shell ...");
+			exit(0);
+		}
+
+		/* tokenize the input */
+		argv = tokenize(buffer, " \n\t");
+		child_pid = fork();
+		if (child_pid == 0)
+		{
+			if (execve(argv[0], argv, NULL) == -1)
+			{
+				for (ac = 0; ac < 1; ac++)
+					perror(av[ac]);
+			}
 		} else
 		{
-			printf("Error");
+			wait(NULL);
 		}
 	}
+	free(buffer);
+	return (0);
 }
