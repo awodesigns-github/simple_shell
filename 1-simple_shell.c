@@ -1,5 +1,91 @@
 #include "main.h"
 
+extern char **environ;
+
+/**
+ * find_value_by_key - tokenizes the PATH variable
+ *
+ * @key: environment variable
+ *
+ * Return: string
+ */
+char *find_value_by_key(const char *key)
+{
+	int i;
+
+	for (i = 0; environ[i] != NULL; i++)
+	{
+		/* separate the keys from values */
+		char *equal_sign = strchr(environ[i], '=');
+
+		if (equal_sign != NULL)
+		{
+			size_t key_length = equal_sign - environ[i];
+
+			/* compare the keys */
+			if (strncmp(environ[i], key, key_length) == 0)
+			{
+				return (equal_sign);
+			}
+		}
+	}
+	return (NULL);
+}
+
+/**
+ * tokenize_values - tokenizes the values
+ *
+ * @str: values
+ * @delim: delimiter
+ * @max_token: max number
+ *
+ * Return: array of tokens
+ */
+char **tokenize_values(char *str, char *delim, int max_token)
+{
+	char *str_cpy = strdup(str);
+	char **tokens;
+	char *token;
+	int token_count = 0;
+
+	if (str_cpy == NULL)
+	{
+		perror("duplication error");
+		free(str_cpy);
+		return (NULL);
+	}
+
+	tokens = malloc((max_token + 1) * sizeof(char *));
+	if (tokens == NULL)
+	{
+		free(str_cpy);
+		perror("malloc");
+		return (NULL);
+	}
+	token = strtok(str_cpy, delim);
+	while (token != NULL)
+	{
+		tokens[token_count] = strdup(token);
+		if (tokens[token_count] == NULL)
+		{
+			perror("strdup");
+			free(tokens);
+			free(str_cpy);
+			return (NULL);
+		}
+		token_count++;
+		if (token_count >= max_token)
+		{
+			printf("max number of tokens");
+			break;
+		}
+		token = strtok(NULL, delim);
+	}
+	tokens[token_count] = NULL;
+	free(str_cpy);
+	return (tokens);
+}
+
 /**
  * tokenize - tokenizes the string input command
  *
@@ -56,6 +142,9 @@ int main(int ac, char *av[])
 	size_t len = 0;
 	ssize_t read;
 	char **argv;
+	const char *key = "PATH";
+	char *value;
+	char **values;
 
 	while (1)
 	{
@@ -70,6 +159,19 @@ int main(int ac, char *av[])
 			exit(0);
 		}
 
+		/* finding the key */
+		value = find_value_by_key(key);
+		if (value != NULL)
+		{
+			printf("Value of %s: %s\n", key, value);
+		} else
+		{
+			printf("%s not found in environment", key);
+		}
+
+		/* tokenize the value */
+		values = tokenize_values(value, ":", 20);
+
 		/* tokenize the input */
 		argv = tokenize(buffer, " \n\t");
 		child_pid = fork();
@@ -80,6 +182,7 @@ int main(int ac, char *av[])
 				for (ac = 0; ac < 1; ac++)
 					perror(av[ac]);
 			}
+			printf("%s\n", values[0]);
 		} else
 		{
 			wait(NULL);
